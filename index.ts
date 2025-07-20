@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
+import { getConnInfo } from "hono/bun";
 import { secureHeaders } from "hono/secure-headers";
 import { prettyJSON } from "hono/pretty-json";
 import generateText from "./markov";
@@ -31,19 +32,21 @@ app.use("*", async (c, next) => {
     });
 })
 
+
 if (process.env.NODE_ENV === 'production') {
   app.use(
     rateLimiter({
       windowMs: 60 * 1000,
       limit: 10,
       keyGenerator: (c) =>
-        c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown",
+        getConnInfo(c).remote.address || "unknown",
     })
   );
 }
 app.notFound((c) => c.json({ message: "Not Found", ok: false }, 404));
 
 app.get("/generate", (c) => {
+  logger.info(getConnInfo(c).remote.address)
   try {
     const paragraphs = parseInt(c.req.query("paragraphs") ?? "1") || 1;
     if (isNaN(paragraphs) || paragraphs > 10 || paragraphs < 1) {
@@ -58,10 +61,13 @@ app.get("/generate", (c) => {
       message: text,
     });
   } catch (error) {
+    logger.error({
+      requestId: c.get("requestId"),
+      error: error instanceof Error ? error.message : String(error),
+    });
     return c.json(
       {
         message: "Error generating text",
-        error: error instanceof Error ? error.message : "Unknown error",
         ok: false,
       },
       500
