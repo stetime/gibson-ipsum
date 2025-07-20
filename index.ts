@@ -1,10 +1,35 @@
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
+import { secureHeaders } from "hono/secure-headers";
 import { prettyJSON } from "hono/pretty-json";
 import generateText from "./markov";
+import { logger } from "./logger";
 
-const app = new Hono();
+
+type AppEnv = {
+  Variables: {
+    requestId: string;
+  }
+}
+
+const app = new Hono<AppEnv>();
 app.use(prettyJSON());
+app.use(secureHeaders());
+app.use("*", async (c, next) => {
+  const requestId = crypto.randomUUID();
+  c.set("requestId", requestId);
+  const start = Date.now();
+  await next();
+  const duration = Date.now() - start;
+  logger.info(
+    {
+      requestId,
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      duration,
+    });
+})
 
 if (process.env.NODE_ENV === 'production') {
   app.use(
