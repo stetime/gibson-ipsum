@@ -1,16 +1,22 @@
 import { RiMarkov } from "rita";
+import { logger } from "./logger";
 
 if (!process.env.INPUT_TXT) {
-  console.error(
+  logger.error(
     "Please set the INPUT_TXT environment variable to the path of the text file."
   );
   process.exit(1);
 }
 
+const corpus = Bun.file(process.env.INPUT_TXT as string)
+if (!await corpus.exists()) {
+  logger.error(`Input file not found: ${process.env.INPUT_TXT}`);
+  process.exit(1);
+}
 
-const path = await Bun.file(process.env.INPUT_TXT as string).text();
+
 const markov = new RiMarkov(3);
-markov.addText(path);
+markov.addText(await corpus.text());
 
 export default function generateText(paragraphs: number = 1): string[] {
   const output: string[] = [];
