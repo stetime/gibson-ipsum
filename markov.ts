@@ -7,14 +7,14 @@ if (!process.env.INPUT_TXT) {
   process.exit(1);
 }
 
+
 const path = await Bun.file(process.env.INPUT_TXT as string).text();
+const markov = new RiMarkov(3);
+markov.addText(path);
 
 export default function generateText(paragraphs: number = 1): string[] {
   const output: string[] = [];
-
   for (let i = 0; i < paragraphs; i++) {
-    const markov = new RiMarkov(3);
-    markov.addText(path);
     const sentences = markov.generate(10, {
       maxLength: 30,
       minLength: 10,
@@ -23,7 +23,7 @@ export default function generateText(paragraphs: number = 1): string[] {
     const paragraph = sentences.join(" ").replace(/['"`]/g, "");
     output.push(paragraph);
   }
-  return output
+  return output;
 }
 
 generateText();
