@@ -31,5 +31,3 @@ export default function generateText(paragraphs: number = 1): string[] {
   }
   return output;
 }
-
-generateText();

@@ -6,12 +6,11 @@ import { prettyJSON } from "hono/pretty-json";
 import generateText from "./markov";
 import { logger } from "./logger";
 
-
 type AppEnv = {
   Variables: {
     requestId: string;
-  }
-}
+  };
+};
 
 const app = new Hono<AppEnv>();
 app.use(prettyJSON());
@@ -22,31 +21,35 @@ app.use("*", async (c, next) => {
   const start = Date.now();
   await next();
   const duration = Date.now() - start;
-  logger.info(
-    {
-      requestId,
-      method: c.req.method,
-      path: c.req.path,
-      status: c.res.status,
-      duration,
-    });
-})
+  logger.info({
+    requestId,
+    method: c.req.method,
+    path: c.req.path,
+    status: c.res.status,
+    duration,
+  });
+});
 
-
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === "production") {
   app.use(
     rateLimiter({
       windowMs: 60 * 1000,
       limit: 10,
-      keyGenerator: (c) =>
-        getConnInfo(c).remote.address || "unknown",
+      keyGenerator: (c) => getConnInfo(c).remote.address || "unknown",
     })
   );
 }
 app.notFound((c) => c.json({ message: "Not Found", ok: false }, 404));
 
+app.get("/health", (c) => {
+  return c.json({
+    message: "OK",
+    ok: true,
+  });
+});
+
 app.get("/generate", (c) => {
-  logger.info(getConnInfo(c).remote.address)
+  logger.info(getConnInfo(c).remote.address);
   try {
     const paragraphs = parseInt(c.req.query("paragraphs") ?? "1") || 1;
     if (isNaN(paragraphs) || paragraphs > 10 || paragraphs < 1) {
@@ -54,7 +57,6 @@ app.get("/generate", (c) => {
         { message: "Paragraphs must be between 1 and 10", ok: false },
         400
       );
-
     }
     const text = generateText(paragraphs);
     return c.json({
@@ -73,6 +75,11 @@ app.get("/generate", (c) => {
       500
     );
   }
+});
+
+process.on("SIGINT", () => {
+  logger.info("SIGINT received, shutting down gracefully...");
+  process.exit(0);
 });
 
 export default app;
